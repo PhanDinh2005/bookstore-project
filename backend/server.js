@@ -8,6 +8,10 @@ const {
   checkAndCreateTables,
 } = require("./config/init-database");
 
+// Import routes
+const bookRoutes = require('./routes/books');
+const categoryRoutes = require('./routes/categories');
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -47,6 +51,10 @@ const initializeApp = async () => {
       });
     });
 
+    // Đăng ký routes
+    app.use('/api/books', bookRoutes);
+    app.use('/api/categories', categoryRoutes);
+
     // Khởi động server
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
@@ -61,6 +69,3 @@ const initializeApp = async () => {
 
 // Start application
 initializeApp();
-// Thêm sau các route khác
-const bookRoutes = require('./routes/books');
-app.use('/api/books', bookRoutes);
