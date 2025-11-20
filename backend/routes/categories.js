@@ -1,15 +1,31 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const categoryController = require("../controllers/categoryController");
+const { dbHelpers } = require('../config/database');
 
-// Public routes
-router.get("/", categoryController.getAllCategories);
-router.get("/:id", categoryController.getCategoryById);
-router.get("/:id/books", categoryController.getBooksByCategory);
+// GET /api/categories - Lấy danh sách danh mục
+router.get('/', async (req, res) => {
+  try {
+    const categories = await dbHelpers.query(`
+      SELECT 
+        c.*,
+        COUNT(b.id) as book_count
+      FROM categories c
+      LEFT JOIN books b ON c.id = b.category_id
+      GROUP BY c.id, c.name, c.description, c.created_at
+      ORDER BY c.name
+    `);
 
-// Admin routes (sẽ thêm middleware auth sau)
-router.post("/", categoryController.createCategory);
-router.put("/:id", categoryController.updateCategory);
-router.delete("/:id", categoryController.deleteCategory);
+    res.json({
+      success: true,
+      data: categories
+    });
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
 
 module.exports = router;

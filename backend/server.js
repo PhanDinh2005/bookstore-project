@@ -69,3 +69,12 @@ const initializeApp = async () => {
 
 // Start application
 initializeApp();
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Thêm middleware để set charset cho response
+app.use((req, res, next) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  next();
+});

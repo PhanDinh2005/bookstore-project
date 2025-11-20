@@ -13,6 +13,13 @@ const dbConfig = {
   },
   options: {
     trustServerCertificate: true,
+    useUTC: false,
+    charset: 'UTF-8'
+  },
+  pool: {
+    max: 10,
+    min: 0,
+    idleTimeoutMillis: 30000
   }
 };
 
