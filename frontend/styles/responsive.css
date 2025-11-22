@@ -1,0 +1,32 @@
+@media (max-width: 992px) {
+  header {
+    flex-direction: column;
+    text-align: center;
+  }
+  nav a {
+    display: block;
+    margin: 8px 0;
+  }
+  .book-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .hero h1 {
+    font-size: 20px;
+  }
+  .hero p {
+    font-size: 14px;
+  }
+  .btn {
+    padding: 8px 12px;
+  }
+  .login-box {
+    width: 90%;
+  }
+  .filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

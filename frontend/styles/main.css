@@ -1,0 +1,390 @@
+/* Reset cơ bản */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Poppins", sans-serif;
+}
+
+/* Nền và màu */
+body {
+  background: linear-gradient(180deg, #f4f6f9, #ffffff);
+  color: #333;
+  min-height: 100vh;
+}
+
+/* Header */
+header {
+  background: #0a58ca;
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 40px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.logo {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+nav a {
+  color: white;
+  text-decoration: none;
+  margin-left: 25px;
+  font-weight: 500;
+  transition: 0.3s;
+}
+
+nav a:hover,
+nav a.active {
+  border-bottom: 2px solid #ffc107;
+  padding-bottom: 3px;
+}
+
+/* Hero section */
+.hero {
+  text-align: center;
+  padding: 80px 20px;
+  background: url("https://images.unsplash.com/photo-1524995997946-a1c2e315a42f")
+    no-repeat center/cover;
+  color: white;
+  position: relative;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.hero h1,
+.hero p,
+.hero a {
+  position: relative;
+  z-index: 1;
+}
+
+.hero h1 {
+  font-size: 2.5rem;
+  margin-bottom: 15px;
+  animation: fadeInDown 1s ease-in-out;
+}
+
+.hero p {
+  font-size: 1.2rem;
+  margin-bottom: 30px;
+  animation: fadeInUp 1s ease-in-out;
+}
+
+/* Button */
+.btn {
+  background: #ffc107;
+  color: #000;
+  padding: 12px 25px;
+  border: none;
+  border-radius: 30px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn:hover {
+  background: #e0a800;
+  transform: scale(1.05);
+}
+
+/* Footer */
+footer {
+  text-align: center;
+  padding: 20px;
+  background: #0a58ca;
+  color: white;
+  margin-top: 50px;
+}
+
+/* Sách hiển thị */
+.book-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  padding: 40px;
+}
+
+.book {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.book:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+}
+
+.book img {
+  width: 100%;
+  height: 250px;
+  object-fit: cover;
+}
+
+.book h3 {
+  font-size: 18px;
+  margin: 15px 0 5px;
+  color: #0a58ca;
+}
+
+.book p {
+  font-size: 14px;
+  color: #555;
+}
+
+/* Animation */
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.product-page {
+  padding: 40px;
+  text-align: center;
+}
+
+.product-page h1 {
+  font-size: 2rem;
+  color: #0a58ca;
+  margin-bottom: 30px;
+}
+
+.filters {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.filters input,
+.filters select {
+  padding: 10px 15px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  outline: none;
+  font-size: 15px;
+  width: 250px;
+  transition: 0.3s;
+}
+
+.filters input:focus,
+.filters select:focus {
+  border-color: #0a58ca;
+  box-shadow: 0 0 5px rgba(10, 88, 202, 0.4);
+}
+.book-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 25px;
+  padding: 40px;
+}
+
+.book {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.book:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+}
+
+.book img {
+  width: 100%;
+  height: 260px;
+  object-fit: cover;
+}
+
+.book-info {
+  padding: 15px;
+  text-align: left;
+}
+
+.book-info h3 {
+  color: #0a58ca;
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+
+.book-info p {
+  font-size: 14px;
+  color: #444;
+  margin: 3px 0;
+}
+
+.book-info .btn {
+  display: block;
+  margin-top: 10px;
+  width: 100%;
+  text-align: center;
+}
+.cart-page {
+  padding: 40px;
+}
+
+.cart-page h1 {
+  text-align: center;
+  color: #0a58ca;
+  margin-bottom: 25px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 25px;
+}
+
+th, td {
+  border: 1px solid #ddd;
+  padding: 10px;
+  text-align: center;
+}
+
+th {
+  background: #0a58ca;
+  color: #fff;
+}
+
+td img {
+  width: 70px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 5px;
+}
+
+.cart-total {
+  text-align: right;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+/* ============ CART PAGE ============ */
+.cart-page {
+  padding: 40px;
+}
+
+.cart-page h1 {
+  text-align: center;
+  color: #0a58ca;
+  margin-bottom: 25px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 25px;
+}
+
+th, td {
+  border: 1px solid #ddd;
+  padding: 10px;
+  text-align: center;
+}
+
+th {
+  background: #0a58ca;
+  color: #fff;
+}
+
+td img {
+  width: 70px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 5px;
+}
+
+.cart-total {
+  text-align: right;
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-top: 10px;
+}
+
+.cart-actions {
+  text-align: right;
+  margin-top: 15px;
+}
+
+.checkout-btn {
+  background: #ffc107;
+  border: none;
+  color: #000;
+  font-weight: bold;
+  padding: 10px 25px;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+.checkout-btn:hover {
+  background: #ffca2c;
+}
+
+/* ============ TOAST ============ */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #198754;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.4s ease;
+  z-index: 9999;
+  font-weight: bold;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+.toast.error {
+  background: #dc3545;
+}
+.delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  transition: 0.2s;
+}
+
+.delete-btn:hover {
+  color: red;
+  transform: scale(1.2);
+}
