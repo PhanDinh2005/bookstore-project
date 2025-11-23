@@ -39,7 +39,7 @@ BookStore là một ứng dụng web bán sách trực tuyến được phát tr
 - **Dotenv** - Quản lý environment variables
 
 ## 📁 Cấu Trúc Dự Án
-bookstore-project/
+```bash bookstore-project/
 ├── 📁 frontend/ # Giao diện người dùng
 │ ├── 📁 pages/ # Các trang con
 │ │ ├── home.html # Trang chủ
@@ -80,6 +80,7 @@ bookstore-project/
 │ └── server.js # Server chính
 │
 └── 📄 README.md # Tài liệu dự án
+```
 
 ## 🗄 Thiết Kế Database
 ### **Sơ Đồ Quan Hệ**
