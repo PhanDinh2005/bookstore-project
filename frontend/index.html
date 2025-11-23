@@ -1,32 +1,103 @@
 <!DOCTYPE html>
 <html lang="vi">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Bookstore</title>
-  <link rel="stylesheet" href="./styles/variables.css" />
-  <link rel="stylesheet" href="./styles/main.css" />
-  <link rel="stylesheet" href="./styles/responsive.css" />
-</head>
-<body>
-  <header>
-    <div class="logo">📚 BookStore</div>
-    <nav>
-      <a href="./pages/home.html">Trang chủ</a>
-      <a href="./pages/products.html">Sản phẩm</a>
-      <a href="./pages/cart.html">Giỏ hàng</a>
-      <a href="./pages/login.html">Đăng nhập</a>
-    </nav>
-  </header>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BookStore - Mua sách trực tuyến</title>
+    <link rel="stylesheet" href="styles/main.css" />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <!-- Header -->
+    <header class="header">
+      <nav class="navbar">
+        <div class="nav-brand">
+          <h1>📚 BookStore</h1>
+        </div>
+        <div class="nav-links">
+          <a href="#home" class="nav-link">Trang chủ</a>
+          <a href="#books" class="nav-link">Sách</a>
+          <a href="#categories" class="nav-link">Danh mục</a>
+          <a href="#cart" class="nav-link">
+            <i class="fas fa-shopping-cart"></i>
+            Giỏ hàng <span id="cart-count">0</span>
+          </a>
+          <a href="#login" class="nav-link btn-login">Đăng nhập</a>
+        </div>
+      </nav>
+    </header>
 
-  <main class="hero">
-    <h1>Chào mừng đến với BookStore</h1>
-    <p>Khám phá hàng ngàn đầu sách chất lượng từ các tác giả nổi tiếng</p>
-    <a href="./pages/products.html" class="btn">Khám phá ngay</a>
-  </main>
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Hero Section -->
+      <section id="home" class="hero-section">
+        <div class="hero-content">
+          <h2>Khám phá thế giới sách trực tuyến</h2>
+          <p>Hơn 1000+ đầu sách với đa dạng thể loại</p>
+          <button class="btn-primary" onclick="showBooksSection()">
+            Mua sách ngay
+          </button>
+        </div>
+      </section>
 
-  <footer>
-    <p>&copy; 2025 BookStore | Designed </p>
-  </footer>
-</body>
+      <!-- Categories Section -->
+      <section id="categories" class="categories-section">
+        <div class="container">
+          <h2 class="section-title">Danh mục sách</h2>
+          <div id="categories-list" class="categories-grid">
+            <!-- Categories will be loaded here -->
+          </div>
+        </div>
+      </section>
+
+      <!-- Books Section -->
+      <section id="books" class="books-section">
+        <div class="container">
+          <div class="section-header">
+            <h2 class="section-title">Sách mới nhất</h2>
+            <div class="search-filter">
+              <input
+                type="text"
+                id="search-input"
+                placeholder="Tìm kiếm sách..."
+                class="search-box"
+              />
+              <select id="category-filter" class="filter-select">
+                <option value="">Tất cả danh mục</option>
+              </select>
+            </div>
+          </div>
+          <div id="books-list" class="books-grid">
+            <!-- Books will be loaded here -->
+          </div>
+          <div class="load-more">
+            <button id="load-more-btn" class="btn-secondary">Xem thêm</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Book Detail Modal -->
+      <div id="book-modal" class="modal">
+        <div class="modal-content">
+          <span class="close">&times;</span>
+          <div id="book-detail">
+            <!-- Book detail will be loaded here -->
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="container">
+        <p>&copy; 2024 BookStore. All rights reserved.</p>
+      </div>
+    </footer>
+
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+  </body>
 </html>
