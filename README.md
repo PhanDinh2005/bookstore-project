@@ -84,7 +84,7 @@ BookStore là một ứng dụng web bán sách trực tuyến được phát tr
 
 ## 🗄 Thiết Kế Database
 ### **Sơ Đồ Quan Hệ**
-users (1) ←→ (n) orders (1) ←→ (n) order_items (n) ←→ (1) books
+ users (1) ←→ (n) orders (1) ←→ (n) order_items (n) ←→ (1) books
 ↑
 categories (1) ←→ (n) books
 
