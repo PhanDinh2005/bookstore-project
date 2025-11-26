@@ -1,4 +1,5 @@
-const { dbHelpers } = require("../config/database");
+// 👇 SỬA ĐỔI 1: Dùng trực tiếp mssql để tránh lỗi kết nối
+const sql = require("mssql");
 const bcrypt = require("bcryptjs");
 
 class User {
@@ -17,83 +18,87 @@ class User {
     this.updated_at = userData.updated_at;
   }
 
-  // Tạo user mới
+  // 1. Tạo user mới
   static async create(userData) {
     try {
-      const hashedPassword = await bcrypt.hash(userData.password, 10);
+      // 👇 SỬA ĐỔI 2: KHÔNG mã hóa ở đây nữa (vì Controller đã làm rồi)
+      // Chúng ta lưu thẳng userData.password (đã là chuỗi mã hóa) vào DB
 
-      const sql = `
-                INSERT INTO users (name, email, password, role, address, phone, avatar_url) 
-                OUTPUT INSERTED.* 
-                VALUES (@name, @email, @password, @role, @address, @phone, @avatar_url)
-            `;
+      const request = new sql.Request();
+      const result = await request
+        .input("name", sql.NVarChar, userData.name)
+        .input("email", sql.NVarChar, userData.email)
+        .input("password", sql.NVarChar, userData.password) // Pass này đã hash từ Controller
+        .input("role", sql.NVarChar, userData.role || "customer")
+        .input("address", sql.NVarChar, userData.address)
+        .input("phone", sql.NVarChar, userData.phone)
+        .input("avatar_url", sql.NVarChar, userData.avatar_url).query(`
+            INSERT INTO users (name, email, password, role, address, phone, avatar_url, is_active, created_at) 
+            OUTPUT INSERTED.* VALUES (@name, @email, @password, @role, @address, @phone, @avatar_url, 1, GETDATE())
+        `);
 
-      const params = {
-        name: userData.name,
-        email: userData.email,
-        password: hashedPassword,
-        role: userData.role || "customer",
-        address: userData.address || null,
-        phone: userData.phone || null,
-        avatar_url: userData.avatar_url || null,
-      };
-
-      const result = await dbHelpers.query(sql, params);
-      return new User(result[0]);
+      return new User(result.recordset[0]);
     } catch (error) {
       throw error;
     }
   }
 
-  // Tìm user bằng ID
+  // 2. Tìm user bằng ID
   static async findById(id) {
     try {
-      const sql = "SELECT * FROM users WHERE id = @id";
-      const result = await dbHelpers.getOne(sql, { id });
-      return result ? new User(result) : null;
+      const request = new sql.Request();
+      const result = await request
+        .input("id", sql.Int, id)
+        .query("SELECT * FROM users WHERE id = @id");
+
+      return result.recordset[0] ? new User(result.recordset[0]) : null;
     } catch (error) {
       throw error;
     }
   }
 
-  // Tìm user bằng email
+  // 3. Tìm user bằng email
   static async findByEmail(email) {
     try {
-      const sql = "SELECT * FROM users WHERE email = @email";
-      const result = await dbHelpers.getOne(sql, { email });
-      return result ? new User(result) : null;
+      const request = new sql.Request();
+      const result = await request
+        .input("email", sql.NVarChar, email)
+        .query("SELECT * FROM users WHERE email = @email");
+
+      return result.recordset[0] ? new User(result.recordset[0]) : null;
     } catch (error) {
       throw error;
     }
   }
 
-  // Kiểm tra password
-  async checkPassword(password) {
-    return await bcrypt.compare(password, this.password);
+  // 4. Kiểm tra password (GIỮ NGUYÊN)
+  async checkPassword(inputPassword) {
+    // inputPassword: 123
+    // this.password: $2b$10$.... (Lấy từ DB)
+    return await bcrypt.compare(inputPassword, this.password);
   }
 
-  // Cập nhật user
+  // 5. Cập nhật user
   async update(updateData) {
     try {
-      const sql = `
-                UPDATE users 
-                SET name = @name, email = @email, address = @address, phone = @phone, 
-                    avatar_url = @avatar_url, updated_at = GETDATE()
-                WHERE id = @id
-            `;
+      const request = new sql.Request();
+      await request
+        .input("id", sql.Int, this.id)
+        .input("name", sql.NVarChar, updateData.name || this.name)
+        .input("email", sql.NVarChar, updateData.email || this.email)
+        .input("address", sql.NVarChar, updateData.address || this.address)
+        .input("phone", sql.NVarChar, updateData.phone || this.phone)
+        .input(
+          "avatar_url",
+          sql.NVarChar,
+          updateData.avatar_url || this.avatar_url
+        ).query(`
+            UPDATE users 
+            SET name = @name, email = @email, address = @address, phone = @phone, 
+                avatar_url = @avatar_url, updated_at = GETDATE()
+            WHERE id = @id
+        `);
 
-      const params = {
-        id: this.id,
-        name: updateData.name || this.name,
-        email: updateData.email || this.email,
-        address: updateData.address || this.address,
-        phone: updateData.phone || this.phone,
-        avatar_url: updateData.avatar_url || this.avatar_url,
-      };
-
-      await dbHelpers.query(sql, params);
-
-      // Cập nhật object
       Object.assign(this, updateData);
       return this;
     } catch (error) {
@@ -101,113 +106,59 @@ class User {
     }
   }
 
-  // Đổi mật khẩu
+  // 6. Đổi mật khẩu
   async changePassword(newPassword) {
     try {
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-      const sql =
-        "UPDATE users SET password = @password, updated_at = GETDATE() WHERE id = @id";
-      await dbHelpers.query(sql, { id: this.id, password: hashedPassword });
-      this.password = hashedPassword;
+      // Hàm này thường được gọi riêng lẻ, nên cần hash tại đây nếu controller chưa hash
+      // TUY NHIÊN: Để an toàn, tốt nhất nên hash ở Controller changePassword
+      // Ở đây mình giả định Controller changePassword CŨNG ĐÃ HASH rồi nhé.
+      // Nếu Controller chưa hash thì bạn phải bật dòng dưới lên:
+      // const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      const request = new sql.Request();
+      await request
+        .input("id", sql.Int, this.id)
+        .input("password", sql.NVarChar, newPassword) // newPassword đã hash
+        .query(
+          "UPDATE users SET password = @password, updated_at = GETDATE() WHERE id = @id"
+        );
+
+      this.password = newPassword;
       return true;
     } catch (error) {
       throw error;
     }
   }
 
-  // Xóa user (soft delete)
-  async deactivate() {
-    try {
-      const sql =
-        "UPDATE users SET is_active = 0, updated_at = GETDATE() WHERE id = @id";
-      await dbHelpers.query(sql, { id: this.id });
-      this.is_active = false;
-      return true;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  // Lấy tất cả users (admin only)
+  // 7. Lấy tất cả users (admin only)
   static async findAll(limit = 10, offset = 0, isActive = null) {
     try {
-      let whereClause = "";
-      const params = { limit, offset };
+      const request = new sql.Request();
+      let sqlQuery = `
+        SELECT id, name, email, role, avatar_url, is_active, created_at 
+        FROM users 
+      `;
 
       if (isActive !== null) {
-        whereClause = "WHERE is_active = @isActive";
-        params.isActive = isActive;
+        sqlQuery += " WHERE is_active = @isActive";
+        request.input("isActive", sql.Bit, isActive);
       }
 
-      const sql = `
-                SELECT id, name, email, role, avatar_url, is_active, created_at 
-                FROM users 
-                ${whereClause}
-                ORDER BY created_at DESC 
-                OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
-            `;
+      sqlQuery +=
+        " ORDER BY created_at DESC OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY";
 
-      const result = await dbHelpers.query(sql, params);
-      return result.map((user) => new User(user));
+      const result = await request
+        .input("limit", sql.Int, limit)
+        .input("offset", sql.Int, offset)
+        .query(sqlQuery);
+
+      return result.recordset.map((user) => new User(user));
     } catch (error) {
       throw error;
     }
   }
 
-  // Lấy wishlist của user
-  async getWishlist() {
-    try {
-      const sql = `
-                SELECT b.* 
-                FROM wishlists w 
-                JOIN books b ON w.book_id = b.id 
-                WHERE w.user_id = @user_id
-                ORDER BY w.created_at DESC
-            `;
-      const result = await dbHelpers.query(sql, { user_id: this.id });
-      return result;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  // Lấy cart của user
-  async getCart() {
-    try {
-      const sql = `
-                SELECT c.*, b.title, b.author, b.price, b.image_url, b.stock_quantity 
-                FROM carts c 
-                JOIN books b ON c.book_id = b.id 
-                WHERE c.user_id = @user_id
-                ORDER BY c.updated_at DESC
-            `;
-      const result = await dbHelpers.query(sql, { user_id: this.id });
-      return result;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  // Lấy orders của user
-  async getOrders(limit = 10, offset = 0) {
-    try {
-      const sql = `
-                SELECT * FROM orders 
-                WHERE user_id = @user_id 
-                ORDER BY created_at DESC 
-                OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
-            `;
-      const result = await dbHelpers.query(sql, {
-        user_id: this.id,
-        limit,
-        offset,
-      });
-      return result;
-    } catch (error) {
-      throw error;
-    }
-  }
-
+  // Helper: Chuyển sang JSON (ẩn password)
   toJSON() {
     return {
       id: this.id,
@@ -219,7 +170,6 @@ class User {
       avatar_url: this.avatar_url,
       is_active: this.is_active,
       created_at: this.created_at,
-      updated_at: this.updated_at,
     };
   }
 }

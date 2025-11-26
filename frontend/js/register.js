@@ -1,57 +1,74 @@
-const API_BASE = "http://localhost:5000/api";
+// ⚠️ QUAN TRỌNG: Không khai báo lại API_BASE nếu đã có trong api.js
+// Nếu file api.js chưa có thì mới mở dòng dưới ra:
+// const API_BASE = "http://localhost:5000/api";
 
 async function handleRegister(event) {
   event.preventDefault(); // Chặn load lại trang
 
-  // 1. Lấy dữ liệu
+  // Lấy dữ liệu từ form
   const username = document.getElementById("username").value;
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
   const confirmPassword = document.getElementById("confirm-password").value;
+
+  // Lấy thẻ hiển thị lỗi & nút bấm
   const errorMsg = document.getElementById("error-message");
+  const btnSubmit = document.querySelector(".btn-submit");
 
   // Reset lỗi
   errorMsg.style.display = "none";
   errorMsg.innerText = "";
 
-  // 2. Kiểm tra mật khẩu khớp nhau
+  // 1. Kiểm tra mật khẩu xác nhận
   if (password !== confirmPassword) {
-    errorMsg.innerText = "Mật khẩu xác nhận không khớp!";
+    errorMsg.innerText = "❌ Mật khẩu xác nhận không khớp!";
     errorMsg.style.display = "block";
     return;
   }
 
+  // Khóa nút để tránh bấm nhiều lần
+  btnSubmit.innerText = "Đang xử lý...";
+  btnSubmit.disabled = true;
+
   try {
-        // 3. Gửi yêu cầu Đăng ký lên Server
-        const res = await fetch(`${API_BASE}/auth/register`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            // 👇 SỬA DÒNG NÀY: Đổi 'username' thành 'name: username'
-            // Nghĩa là: Lấy giá trị nhập ở ô username, nhưng gửi đi với tên là "name" cho Backend vui lòng
-            body: JSON.stringify({ 
-                name: username,  // <--- QUAN TRỌNG
-                email, 
-                password 
-            })
-        });
+    console.log("🚀 Đang gửi dữ liệu đăng ký...");
 
-        const data = await res.json();
+    // 2. Gửi yêu cầu lên Server
+    const res = await fetch(`${API_BASE}/auth/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: username, // Backend cần 'name'
+        email: email,
+        password: password,
+      }),
+    });
 
-    // 4. Xử lý kết quả
-    if (res.ok || data.success) {
-      alert("🎉 Đăng ký thành công! Hãy đăng nhập ngay.");
-      // Chuyển hướng sang trang đăng nhập
+    const data = await res.json();
+    console.log("📦 Phản hồi từ Server:", data);
+
+    // 3. Xử lý kết quả
+    if (res.ok) {
+      // ✅ THÀNH CÔNG
+      alert("🎉 Đăng ký thành công! Bạn có thể đăng nhập ngay.");
+
+      // Chuyển sang trang đăng nhập
+      // Vì register.html và login.html cùng nằm trong thư mục 'pages' nên gọi trực tiếp
       window.location.href = "login.html";
     } else {
-      // Hiện lỗi từ Backend (ví dụ: Email đã tồn tại)
-      errorMsg.innerText = data.message || "Đăng ký thất bại!";
-      errorMsg.style.display = "block";
+      // ❌ THẤT BẠI (Backend báo lỗi, ví dụ: Email trùng)
+      throw new Error(data.message || "Đăng ký thất bại");
     }
   } catch (err) {
-    console.error(err);
-    errorMsg.innerText = "Lỗi kết nối Server!";
+    console.error("Lỗi:", err);
+    // Hiện lỗi ra màn hình cho người dùng thấy
+    errorMsg.innerText = "⚠️ " + (err.message || "Lỗi kết nối Server!");
     errorMsg.style.display = "block";
+
+    // Mở lại nút bấm
+    btnSubmit.innerText = "ĐĂNG KÝ";
+    btnSubmit.disabled = false;
   }
 }

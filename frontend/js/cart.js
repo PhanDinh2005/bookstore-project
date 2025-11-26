@@ -1,15 +1,4 @@
-const API_BASE = "http://localhost:5000/api";
 
-// Hàm lấy token chuẩn
-const getToken = () => localStorage.getItem("token");
-
-// Hàm định dạng tiền tệ
-const formatMoney = (amount) => {
-  return new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-  }).format(amount);
-};
 
 // 1. Tự động chạy khi tải trang
 document.addEventListener("DOMContentLoaded", () => {

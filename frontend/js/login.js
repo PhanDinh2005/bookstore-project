@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:5000/api";
+
 
 // Bắt sự kiện submit form ngay khi trang load xong
 document.addEventListener("DOMContentLoaded", () => {

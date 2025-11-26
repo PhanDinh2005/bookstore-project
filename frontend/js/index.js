@@ -149,13 +149,27 @@ function renderStars(rating) {
   return stars;
 }
 
-// 5. HÀM THÊM GIỎ HÀNG (Giữ nguyên logic cũ)
+
+// ... (Các hàm khác giữ nguyên)
+
+// 5. HÀM THÊM GIỎ HÀNG (Đã được sửa)
 async function addToCart(bookId) {
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("token"); // Thay alert() bằng thông báo SweetAlert2
   if (!token) {
-    if (confirm("Bạn cần đăng nhập để mua hàng. Đến trang đăng nhập ngay?")) {
-      window.location.href = "pages/login.html";
-    }
+    Swal.fire({
+      title: "Đăng nhập",
+      text: "Bạn cần đăng nhập để mua hàng.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#e30019", // Màu đỏ Fahasa
+      cancelButtonColor: "#6c757d",
+      confirmButtonText: "Đến trang Đăng nhập",
+      cancelButtonText: "Để sau",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        window.location.href = "pages/login.html";
+      }
+    });
     return;
   }
 
@@ -171,11 +185,34 @@ async function addToCart(bookId) {
     const data = await res.json();
 
     if (res.ok || data.success) {
-      alert("✅ Đã thêm vào giỏ hàng!");
+      await updateCartCount();
+      // ✅ THAY THẾ alert() BẰNG SWAL.FIRE() - POPUP XỊN SÒ
+      Swal.fire({
+        title: "Thành công!",
+        text: "✅ Đã thêm vào giỏ hàng!",
+        icon: "success",
+        toast: true, // Kích hoạt chế độ Toast (thông báo nhỏ gọn)
+        position: "top-end", // Hiển thị ở góc trên bên phải
+        showConfirmButton: false,
+        timer: 1500, // Tự động đóng sau 1,5 giây
+        timerProgressBar: true,
+      });
     } else {
-      alert("Lỗi: " + data.message);
+      // Thông báo lỗi
+      Swal.fire({
+        title: "Lỗi",
+        text: "Lỗi: " + data.message,
+        icon: "error",
+        confirmButtonColor: "#e30019",
+      });
     }
   } catch (e) {
-    alert("Lỗi kết nối");
+    // Lỗi kết nối
+    Swal.fire({
+      title: "Lỗi",
+      text: "Lỗi kết nối Server!",
+      icon: "error",
+      confirmButtonColor: "#e30019",
+    });
   }
 }

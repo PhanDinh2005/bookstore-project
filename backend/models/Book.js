@@ -1,421 +1,228 @@
-const { dbHelpers } = require("../config/database");
+const sql = require("mssql");
+const { dbHelpers } = require("../config/database"); // Nếu bạn dùng dbHelpers, hoặc dùng trực tiếp sql
 
 class Book {
-  constructor(bookData) {
-    this.id = bookData.id;
-    this.title = bookData.title;
-    this.author = bookData.author;
-    this.price = bookData.price;
-    this.original_price = bookData.original_price;
-    this.category_id = bookData.category_id;
-    this.description = bookData.description;
-    this.image_url = bookData.image_url;
-    this.stock_quantity = bookData.stock_quantity;
-    this.isbn = bookData.isbn;
-    this.publisher = bookData.publisher;
-    this.published_date = bookData.published_date;
-    this.pages = bookData.pages;
-    this.language = bookData.language;
-    this.weight_kg = bookData.weight_kg;
-    this.dimensions = bookData.dimensions;
-    this.is_featured = bookData.is_featured;
-    this.is_bestseller = bookData.is_bestseller;
-    this.rating_avg = bookData.rating_avg;
-    this.rating_count = bookData.rating_count;
-    this.created_at = bookData.created_at;
-    this.updated_at = bookData.updated_at;
-    this.category_name = bookData.category_name;
+  constructor(data) {
+    this.id = data.id;
+    this.title = data.title;
+    this.author = data.author;
+    this.price = data.price;
+    this.original_price = data.original_price;
+    this.description = data.description;
+    this.image_url = data.image_url;
+    this.category_id = data.category_id;
+    this.stock_quantity = data.stock_quantity;
+    this.is_featured = data.is_featured;
+    this.is_bestseller = data.is_bestseller;
+    this.average_rating = data.average_rating;
+    this.review_count = data.review_count;
+    // Các trường phụ
+    this.isbn = data.isbn;
+    this.publisher = data.publisher;
   }
 
-  // Tạo book mới
-  static async create(bookData) {
-    try {
-      const sql = `
-                INSERT INTO books (
-                    title, author, price, original_price, category_id, description, 
-                    image_url, stock_quantity, isbn, publisher, published_date, 
-                    pages, language, weight_kg, dimensions, is_featured, is_bestseller
-                )
-                OUTPUT INSERTED.*
-                VALUES (
-                    @title, @author, @price, @original_price, @category_id, @description,
-                    @image_url, @stock_quantity, @isbn, @publisher, @published_date,
-                    @pages, @language, @weight_kg, @dimensions, @is_featured, @is_bestseller
-                )
-            `;
-
-      const result = await dbHelpers.query(sql, bookData);
-      return new Book(result[0]);
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  // Tìm book bằng ID
-  static async findById(id) {
-    try {
-      const sql = `
-                SELECT b.*, c.name as category_name 
-                FROM books b 
-                LEFT JOIN categories c ON b.category_id = c.id 
-                WHERE b.id = @id
-            `;
-      const result = await dbHelpers.getOne(sql, { id });
-      return result ? new Book(result) : null;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  // Lấy tất cả books với phân trang và filter
+  // 1. Lọc và Phân trang (findAll)
   static async findAll({
+    page,
+    limit,
+    offset,
     category_id,
     search,
     min_price,
     max_price,
     is_featured,
     is_bestseller,
-    limit = 12,
-    offset = 0,
-    sortBy = "created_at",
-    sortOrder = "DESC",
-  } = {}) {
-    try {
-      let whereClause = "";
-      const params = { limit, offset };
+    sortBy,
+    sortOrder,
+  }) {
+    const request = new sql.Request();
+    let query = "SELECT * FROM Books WHERE 1=1";
+    let countQuery = "SELECT COUNT(*) as total FROM Books WHERE 1=1";
 
-      if (category_id) {
-        whereClause += " AND b.category_id = @category_id";
-        params.category_id = category_id;
-      }
-
-      if (search) {
-        whereClause +=
-          " AND (b.title LIKE @search OR b.author LIKE @search OR b.description LIKE @search)";
-        params.search = `%${search}%`;
-      }
-
-      if (min_price) {
-        whereClause += " AND b.price >= @min_price";
-        params.min_price = parseFloat(min_price);
-      }
-
-      if (max_price) {
-        whereClause += " AND b.price <= @max_price";
-        params.max_price = parseFloat(max_price);
-      }
-
-      if (is_featured !== undefined) {
-        whereClause += " AND b.is_featured = @is_featured";
-        params.is_featured = is_featured;
-      }
-
-      if (is_bestseller !== undefined) {
-        whereClause += " AND b.is_bestseller = @is_bestseller";
-        params.is_bestseller = is_bestseller;
-      }
-
-      // Validate sort column to prevent SQL injection
-      const validSortColumns = [
-        "created_at",
-        "price",
-        "title",
-        "rating_avg",
-        "updated_at",
-      ];
-      const sortColumn = validSortColumns.includes(sortBy)
-        ? sortBy
-        : "created_at";
-      const order = sortOrder.toUpperCase() === "ASC" ? "ASC" : "DESC";
-
-      const sql = `
-                SELECT b.*, c.name as category_name 
-                FROM books b 
-                LEFT JOIN categories c ON b.category_id = c.id 
-                WHERE 1=1 ${whereClause}
-                ORDER BY b.${sortColumn} ${order}
-                OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
-            `;
-
-      const countSql = `
-                SELECT COUNT(*) as total 
-                FROM books b 
-                WHERE 1=1 ${whereClause}
-            `;
-
-      const [books, countResult] = await Promise.all([
-        dbHelpers.query(sql, params),
-        dbHelpers.getOne(countSql, params),
-      ]);
-
-      return {
-        books: books.map((book) => new Book(book)),
-        total: countResult.total,
-        limit,
-        offset,
-      };
-    } catch (error) {
-      throw error;
+    // Xây dựng điều kiện WHERE động
+    if (category_id) {
+      query += " AND category_id = @category_id";
+      countQuery += " AND category_id = @category_id";
+      request.input("category_id", sql.Int, category_id);
     }
+    if (search) {
+      query += " AND (title LIKE @search OR author LIKE @search)";
+      countQuery += " AND (title LIKE @search OR author LIKE @search)";
+      request.input("search", sql.NVarChar, `%${search}%`);
+    }
+    if (min_price) {
+      query += " AND price >= @min_price";
+      countQuery += " AND price >= @min_price";
+      request.input("min_price", sql.Decimal, min_price);
+    }
+    if (max_price) {
+      query += " AND price <= @max_price";
+      countQuery += " AND price <= @max_price";
+      request.input("max_price", sql.Decimal, max_price);
+    }
+    if (is_featured !== undefined) {
+      query += " AND is_featured = @is_featured";
+      countQuery += " AND is_featured = @is_featured";
+      request.input("is_featured", sql.Bit, is_featured);
+    }
+    if (is_bestseller !== undefined) {
+      query += " AND is_bestseller = @is_bestseller";
+      countQuery += " AND is_bestseller = @is_bestseller";
+      request.input("is_bestseller", sql.Bit, is_bestseller);
+    }
+
+    // Sắp xếp
+    const validSortCols = ["price", "created_at", "title", "id"];
+    const safeSortBy = validSortCols.includes(sortBy) ? sortBy : "created_at";
+    const safeSortOrder = sortOrder === "ASC" ? "ASC" : "DESC";
+
+    query += ` ORDER BY ${safeSortBy} ${safeSortOrder} OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY`;
+
+    // Thực thi
+    request.input("offset", sql.Int, offset);
+    request.input("limit", sql.Int, limit);
+
+    const result = await request.query(query);
+    const countResult = await request.query(countQuery);
+
+    return {
+      books: result.recordset.map((b) => new Book(b)),
+      total: countResult.recordset[0].total,
+    };
   }
 
-  // Lấy sách nổi bật
-  static async getFeaturedBooks(limit = 8) {
-    try {
-      const sql = `
-                SELECT b.*, c.name as category_name 
-                FROM books b 
-                LEFT JOIN categories c ON b.category_id = c.id 
-                WHERE b.is_featured = 1 AND b.stock_quantity > 0
-                ORDER BY b.rating_avg DESC, b.created_at DESC
-                OFFSET 0 ROWS FETCH NEXT @limit ROWS ONLY
-            `;
-      const result = await dbHelpers.query(sql, { limit });
-      return result.map((book) => new Book(book));
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  // Lấy sách bán chạy
-  static async getBestsellers(limit = 8) {
-    try {
-      const sql = `
-                SELECT b.*, c.name as category_name 
-                FROM books b 
-                LEFT JOIN categories c ON b.category_id = c.id 
-                WHERE b.is_bestseller = 1 AND b.stock_quantity > 0
-                ORDER BY b.rating_avg DESC, b.created_at DESC
-                OFFSET 0 ROWS FETCH NEXT @limit ROWS ONLY
-            `;
-      const result = await dbHelpers.query(sql, { limit });
-      return result.map((book) => new Book(book));
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  // Tìm kiếm sách nâng cao
+  // 2. Tìm kiếm nâng cao (searchAdvanced)
   static async searchAdvanced({
     query,
     category_id,
     min_price,
     max_price,
     min_rating,
-    limit = 12,
-    offset = 0,
+    limit,
+    offset,
   }) {
-    try {
-      let whereClause = "";
-      const params = { limit, offset };
-
-      if (query) {
-        whereClause +=
-          " AND (b.title LIKE @query OR b.author LIKE @query OR b.description LIKE @query OR b.publisher LIKE @query)";
-        params.query = `%${query}%`;
-      }
-
-      if (category_id) {
-        whereClause += " AND b.category_id = @category_id";
-        params.category_id = category_id;
-      }
-
-      if (min_price) {
-        whereClause += " AND b.price >= @min_price";
-        params.min_price = parseFloat(min_price);
-      }
-
-      if (max_price) {
-        whereClause += " AND b.price <= @max_price";
-        params.max_price = parseFloat(max_price);
-      }
-
-      if (min_rating) {
-        whereClause += " AND b.rating_avg >= @min_rating";
-        params.min_rating = parseFloat(min_rating);
-      }
-
-      const sql = `
-                SELECT b.*, c.name as category_name 
-                FROM books b 
-                LEFT JOIN categories c ON b.category_id = c.id 
-                WHERE 1=1 ${whereClause}
-                ORDER BY 
-                    CASE WHEN b.is_featured = 1 THEN 0 ELSE 1 END,
-                    b.rating_avg DESC,
-                    b.created_at DESC
-                OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
-            `;
-
-      const countSql = `
-                SELECT COUNT(*) as total 
-                FROM books b 
-                WHERE 1=1 ${whereClause}
-            `;
-
-      const [books, countResult] = await Promise.all([
-        dbHelpers.query(sql, params),
-        dbHelpers.getOne(countSql, params),
-      ]);
-
-      return {
-        books: books.map((book) => new Book(book)),
-        total: countResult.total,
-        limit,
-        offset,
-      };
-    } catch (error) {
-      throw error;
-    }
+    // Tận dụng lại logic của findAll hoặc viết riêng nếu logic quá khác biệt
+    return await this.findAll({
+      search: query,
+      category_id,
+      min_price,
+      max_price,
+      limit,
+      offset,
+      // Thêm logic min_rating nếu cần
+    });
   }
 
-  // Cập nhật book
-  async update(updateData) {
-    try {
-      const sql = `
-                UPDATE books 
-                SET title = @title, author = @author, price = @price, original_price = @original_price,
-                    category_id = @category_id, description = @description, image_url = @image_url,
-                    stock_quantity = @stock_quantity, isbn = @isbn, publisher = @publisher,
-                    published_date = @published_date, pages = @pages, language = @language,
-                    weight_kg = @weight_kg, dimensions = @dimensions, is_featured = @is_featured,
-                    is_bestseller = @is_bestseller, updated_at = GETDATE()
-                WHERE id = @id
-            `;
-
-      const params = {
-        id: this.id,
-        title: updateData.title || this.title,
-        author: updateData.author || this.author,
-        price: updateData.price || this.price,
-        original_price: updateData.original_price || this.original_price,
-        category_id: updateData.category_id || this.category_id,
-        description: updateData.description || this.description,
-        image_url: updateData.image_url || this.image_url,
-        stock_quantity: updateData.stock_quantity || this.stock_quantity,
-        isbn: updateData.isbn || this.isbn,
-        publisher: updateData.publisher || this.publisher,
-        published_date: updateData.published_date || this.published_date,
-        pages: updateData.pages || this.pages,
-        language: updateData.language || this.language,
-        weight_kg: updateData.weight_kg || this.weight_kg,
-        dimensions: updateData.dimensions || this.dimensions,
-        is_featured:
-          updateData.is_featured !== undefined
-            ? updateData.is_featured
-            : this.is_featured,
-        is_bestseller:
-          updateData.is_bestseller !== undefined
-            ? updateData.is_bestseller
-            : this.is_bestseller,
-      };
-
-      await dbHelpers.query(sql, params);
-
-      // Cập nhật object
-      Object.assign(this, updateData);
-      return this;
-    } catch (error) {
-      throw error;
-    }
+  // 3. Tìm theo ID
+  static async findById(id) {
+    const request = new sql.Request();
+    const result = await request
+      .input("id", sql.Int, id)
+      .query("SELECT * FROM Books WHERE id = @id");
+    return result.recordset[0] ? new Book(result.recordset[0]) : null;
   }
 
-  // Cập nhật stock
+  // 4. Tạo sách mới
+  static async create(data) {
+    const request = new sql.Request();
+    const result = await request
+      .input("title", sql.NVarChar, data.title)
+      .input("author", sql.NVarChar, data.author)
+      .input("price", sql.Decimal, data.price)
+      .input("catId", sql.Int, data.category_id)
+      .input("desc", sql.NVarChar, data.description)
+      .input("img", sql.NVarChar, data.image_url)
+      .input("stock", sql.Int, data.stock_quantity)
+      .input("isbn", sql.NVarChar, data.isbn)
+      .input("featured", sql.Bit, data.is_featured).query(`
+                INSERT INTO Books (title, author, price, category_id, description, image_url, stock_quantity, isbn, is_featured, created_at)
+                OUTPUT INSERTED.*
+                VALUES (@title, @author, @price, @catId, @desc, @img, @stock, @isbn, @featured, GETDATE())
+            `);
+    return new Book(result.recordset[0]);
+  }
+
+  // 5. Cập nhật sách
+  async update(data) {
+    const request = new sql.Request();
+    // (Bạn có thể thêm các trường khác tương tự create)
+    await request
+      .input("id", sql.Int, this.id)
+      .input("title", sql.NVarChar, data.title || this.title)
+      .input("price", sql.Decimal, data.price || this.price)
+      .input("stock", sql.Int, data.stock_quantity || this.stock_quantity)
+      .query(
+        `UPDATE Books SET title=@title, price=@price, stock_quantity=@stock WHERE id=@id`
+      );
+
+    return { ...this, ...data };
+  }
+
+  // 6. Cập nhật kho
   static async updateStock(id, quantity) {
-    try {
-      const sql =
-        "UPDATE books SET stock_quantity = @quantity, updated_at = GETDATE() WHERE id = @id";
-      await dbHelpers.query(sql, { id, quantity });
-      return true;
-    } catch (error) {
-      throw error;
-    }
+    const request = new sql.Request();
+    await request
+      .input("id", sql.Int, id)
+      .input("qty", sql.Int, quantity)
+      .query("UPDATE Books SET stock_quantity = @qty WHERE id = @id");
   }
 
-  // Lấy reviews của sách
-  async getReviews(limit = 10, offset = 0) {
-    try {
-      const sql = `
-                SELECT r.*, u.name as user_name, u.avatar_url as user_avatar
-                FROM reviews r 
-                JOIN users u ON r.user_id = u.id 
-                WHERE r.book_id = @book_id AND r.is_approved = 1
+  // 7. Xóa sách
+  static async delete(id) {
+    const request = new sql.Request();
+    await request
+      .input("id", sql.Int, id)
+      .query("DELETE FROM Books WHERE id = @id");
+  }
+
+  // 8. Lấy Reviews của sách này
+  async getReviews(limit, offset) {
+    const request = new sql.Request();
+    const result = await request
+      .input("bookId", sql.Int, this.id)
+      .input("limit", sql.Int, limit)
+      .input("offset", sql.Int, offset).query(`
+                SELECT r.*, u.name as user_name, u.avatar_url 
+                FROM Reviews r 
+                JOIN Users u ON r.user_id = u.id 
+                WHERE r.book_id = @bookId 
                 ORDER BY r.created_at DESC 
                 OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
-            `;
-      const result = await dbHelpers.query(sql, {
-        book_id: this.id,
-        limit,
-        offset,
-      });
-      return result;
-    } catch (error) {
-      throw error;
-    }
+            `);
+    return result.recordset;
   }
 
-  // Tính rating trung bình
+  // 9. Tính toán lại Rating sau khi có review mới
   async updateRating() {
-    try {
-      const sql = `
-                UPDATE books 
-                SET rating_avg = (
-                    SELECT AVG(CAST(rating AS DECIMAL(3,2))) 
-                    FROM reviews 
-                    WHERE book_id = @book_id AND is_approved = 1
-                ),
-                rating_count = (
-                    SELECT COUNT(*) 
-                    FROM reviews 
-                    WHERE book_id = @book_id AND is_approved = 1
-                ),
-                updated_at = GETDATE()
-                WHERE id = @book_id
-            `;
-      await dbHelpers.query(sql, { book_id: this.id });
-      return true;
-    } catch (error) {
-      throw error;
-    }
+    const request = new sql.Request();
+    await request.input("id", sql.Int, this.id).query(`
+            UPDATE Books 
+            SET average_rating = (SELECT AVG(CAST(rating AS FLOAT)) FROM Reviews WHERE book_id = @id),
+                review_count = (SELECT COUNT(*) FROM Reviews WHERE book_id = @id)
+            WHERE id = @id
+        `);
   }
 
-  // Xóa book
-  static async delete(id) {
-    try {
-      const sql = "DELETE FROM books WHERE id = @id";
-      await dbHelpers.query(sql, { id });
-      return true;
-    } catch (error) {
-      throw error;
-    }
+  // 10. Lấy sách nổi bật
+  static async getFeaturedBooks(limit) {
+    const request = new sql.Request();
+    const result = await request
+      .input("limit", sql.Int, limit)
+      .query(
+        "SELECT TOP (@limit) * FROM Books WHERE is_featured = 1 ORDER BY NEWID()"
+      );
+    return result.recordset;
   }
 
-  toJSON() {
-    return {
-      id: this.id,
-      title: this.title,
-      author: this.author,
-      price: this.price,
-      original_price: this.original_price,
-      category_id: this.category_id,
-      category_name: this.category_name,
-      description: this.description,
-      image_url: this.image_url,
-      stock_quantity: this.stock_quantity,
-      isbn: this.isbn,
-      publisher: this.publisher,
-      published_date: this.published_date,
-      pages: this.pages,
-      language: this.language,
-      weight_kg: this.weight_kg,
-      dimensions: this.dimensions,
-      is_featured: this.is_featured,
-      is_bestseller: this.is_bestseller,
-      rating_avg: this.rating_avg,
-      rating_count: this.rating_count,
-      created_at: this.created_at,
-      updated_at: this.updated_at,
-    };
+  // 11. Lấy sách bán chạy
+  static async getBestsellers(limit) {
+    const request = new sql.Request();
+    const result = await request
+      .input("limit", sql.Int, limit)
+      .query(
+        "SELECT TOP (@limit) * FROM Books WHERE is_bestseller = 1 ORDER BY price DESC"
+      );
+    return result.recordset;
   }
 }
 

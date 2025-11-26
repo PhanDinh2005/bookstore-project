@@ -13,8 +13,17 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
       rel="stylesheet"
     />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"
+    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
   </head>
   <body>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+
+    <script src="js/banner.js"></script>
     <header class="header">
       <div class="container header-container">
         <a href="index.html" class="logo">
@@ -100,17 +109,100 @@
       </div>
     </header>
 
-    <section class="banner-section">
-      <div class="container">
-        <div class="banner-img">
-          <img
-            src="https://cdn0.fahasa.com/media/wysiwyg/Thang-11-2025/Manga_LadingPage_MainBanner_1920x700.jpg"
-            alt="Banner Khuyến Mãi"
-          />
-        </div>
-      </div>
-    </section>
+<section id="banner-section" class="container">
+    <div class="swiper mySwiper">
+        <div class="swiper-wrapper">
+            
+            <div class="swiper-slide">
+                <a href="#" class="inner-border-wrapper">
+                    <img src="img/banner1.png" alt="Banner Tháng 11 Sale Đỉnh">
+                    </a>
+            </div>
+            
+            <div class="swiper-slide">
+                <a href="#" class="inner-border-wrapper">
+                    <img src="img/banner2.png" alt="Banner Chương trình Dark Friday 2025">
+                </a>
+            </div>
+            <div class="swiper-slide">
+                <a href="#" class="inner-border-wrapper">
+                    <img src="img/banner3.png" alt="Banner Chương trình Dark Friday 2025">
+                </a>
+            </div>
+            <div class="swiper-slide">
+                <a href="#" class="inner-border-wrapper">
+                    <img src="img/banner4.png" alt="Banner Mới">
+                </a>
+            </div>
 
+        </div>
+        
+        <div class="swiper-pagination"></div>
+        <div class="swiper-button-next"></div>
+        <div class="swiper-button-prev"></div>
+    </div>
+</section>
+<section id="promo-grid-section" class="container" style="margin-top: 20px;">
+<div class="promo-grid">
+    
+    <div class="promo-item">
+        <a href="#" class="inner-border-wrapper">
+            <img src="./img/img2/banner1.png" alt="Chuyên tuần Ngữ Văn">
+            <button class="mua-ngay-btn">MUA NGAY</button>
+        </a>
+    </div>
+
+    <div class="promo-item">
+        <a href="#" class="inner-border-wrapper">
+            <img src="./img/img2/banner2.png" alt="Mừng NXB Oxford">
+            <button class="mua-ngay-btn">MUA NGAY</button>
+        </a>
+    </div>
+
+    <div class="promo-item">
+        <a href="#" class="inner-border-wrapper">
+            <img src="./img/img2/banner3.png" alt="Quà tri thức">
+            <button class="mua-ngay-btn">MUA NGAY</button>
+        </a>
+    </div>
+
+    <div class="promo-item">
+        <a href="#" class="inner-border-wrapper">
+            <img src="./img/img2/banner4.png" alt="Giáng sinh ấm áp">
+            <button class="mua-ngay-btn">MUA NGAY</button>
+        </a>
+    </div>
+
+</div>
+</section>
+
+<section id="utility-icons-section" class="container" style="margin-top: 30px; margin-bottom: 30px;">
+    <div class="icon-wrapper">
+        <a href="#" class="utility-icon">
+            <i class="fas fa-bolt"></i>
+            <span>Flash Sale</span>
+        </a>
+        <a href="#" class="utility-icon">
+            <i class="fas fa-gift"></i>
+            <span>Gift Card</span>
+        </a>
+        <a href="#" class="utility-icon">
+            <i class="fas fa-tags"></i>
+            <span>Mã Giảm Giá</span>
+        </a>
+        <a href="#" class="utility-icon">
+            <i class="fas fa-book-open"></i>
+            <span>Sách Mới</span>
+        </a>
+        </div>
+</section>
+
+
+
+
+<hr style="margin: 40px 0;">
+
+<section id="main-content" class="container">
     <main class="container main-layout">
       <aside class="sidebar">
         <div class="filter-group">

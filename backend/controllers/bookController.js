@@ -1,432 +1,263 @@
-const Book = require("../models/Book");
-const Review = require("../models/Review");
+const sql = require("mssql");
 
 const bookController = {
-  // Lấy tất cả sách với phân trang và filter
-  async getAllBooks(req, res) {
+  // --- PUBLIC ROUTES ---
+
+  // 1. Lấy tất cả sách (Có phân trang & lọc danh mục)
+  getAllBooks: async (req, res) => {
     try {
-      const {
-        page = 1,
-        limit = 12,
-        category_id,
-        search,
-        min_price,
-        max_price,
-        is_featured,
-        is_bestseller,
-        sortBy = "created_at",
-        sortOrder = "DESC",
-      } = req.query;
-
+      const { page = 1, limit = 10, category } = req.query;
       const offset = (page - 1) * limit;
+      const request = new sql.Request();
 
-      const result = await Book.findAll({
-        category_id,
-        search,
-        min_price,
-        max_price,
-        is_featured:
-          is_featured !== undefined ? Boolean(is_featured) : undefined,
-        is_bestseller:
-          is_bestseller !== undefined ? Boolean(is_bestseller) : undefined,
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        sortBy,
-        sortOrder,
-      });
+      let query = "SELECT * FROM Books";
+
+      // Nếu có lọc theo danh mục
+      if (category) {
+        query += " WHERE category_id = @category";
+        request.input("category", sql.Int, category);
+      }
+
+      query +=
+        " ORDER BY id DESC OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY";
+
+      const result = await request
+        .input("offset", sql.Int, offset)
+        .input("limit", sql.Int, parseInt(limit))
+        .query(query);
+
+      // Đếm tổng số lượng để làm phân trang
+      const countReq = new sql.Request();
+      if (category) countReq.input("category", sql.Int, category);
+      const countQuery = category
+        ? "SELECT COUNT(*) as total FROM Books WHERE category_id = @category"
+        : "SELECT COUNT(*) as total FROM Books";
+      const countResult = await countReq.query(countQuery);
 
       res.json({
         success: true,
-        data: result.books,
+        data: result.recordset,
         pagination: {
-          current: parseInt(page),
-          total: Math.ceil(result.total / limit),
-          totalItems: result.total,
-          itemsPerPage: parseInt(limit),
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: countResult.recordset[0].total,
         },
       });
     } catch (error) {
-      console.error("Get all books error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Lỗi server khi lấy danh sách sách",
-        error: error.message,
-      });
+      console.error(error);
+      res.status(500).json({ success: false, message: "Lỗi server" });
     }
   },
 
-  // Tìm kiếm sách nâng cao
-  async searchBooks(req, res) {
+  // 2. Tìm kiếm sách
+  searchBooks: async (req, res) => {
     try {
-      const {
-        q: query,
-        category_id,
-        min_price,
-        max_price,
-        min_rating,
-        page = 1,
-        limit = 12,
-      } = req.query;
+      const { q } = req.query; // ?q=Harry Potter
+      if (!q)
+        return res
+          .status(400)
+          .json({ success: false, message: "Nhập từ khóa tìm kiếm" });
 
-      const offset = (page - 1) * limit;
+      const request = new sql.Request();
+      const result = await request
+        .input("keyword", sql.NVarChar, `%${q}%`)
+        .query(
+          "SELECT * FROM Books WHERE title LIKE @keyword OR author LIKE @keyword"
+        );
 
-      const result = await Book.searchAdvanced({
-        query,
-        category_id,
-        min_price,
-        max_price,
-        min_rating,
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-      });
-
-      res.json({
-        success: true,
-        data: result.books,
-        pagination: {
-          current: parseInt(page),
-          total: Math.ceil(result.total / limit),
-          totalItems: result.total,
-          itemsPerPage: parseInt(limit),
-        },
-      });
+      res.json({ success: true, data: result.recordset });
     } catch (error) {
-      console.error("Search books error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Lỗi server khi tìm kiếm sách",
-        error: error.message,
-      });
+      res.status(500).json({ success: false, message: "Lỗi tìm kiếm" });
     }
   },
 
-  // Lấy sách nổi bật
-  async getFeaturedBooks(req, res) {
+  // 3. Sách nổi bật (Lấy random hoặc sách mới nhất)
+  getFeaturedBooks: async (req, res) => {
     try {
-      const { limit = 8 } = req.query;
-      const books = await Book.getFeaturedBooks(parseInt(limit));
-
-      res.json({
-        success: true,
-        data: books,
-      });
+      const request = new sql.Request();
+      // Lấy 8 cuốn sách ngẫu nhiên
+      const result = await request.query(
+        "SELECT TOP 8 * FROM Books ORDER BY NEWID()"
+      );
+      res.json({ success: true, data: result.recordset });
     } catch (error) {
-      console.error("Get featured books error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Lỗi server khi lấy sách nổi bật",
-        error: error.message,
-      });
+      res.status(500).json({ success: false, message: "Lỗi server" });
     }
   },
 
-  // Lấy sách bán chạy
-  async getBestsellers(req, res) {
+  // 4. Sách bán chạy (Tạm thời lấy theo số lượng tồn kho ít nhất hoặc logic giả lập)
+  getBestsellers: async (req, res) => {
     try {
-      const { limit = 8 } = req.query;
-      const books = await Book.getBestsellers(parseInt(limit));
-
-      res.json({
-        success: true,
-        data: books,
-      });
+      const request = new sql.Request();
+      const result = await request.query(
+        "SELECT TOP 5 * FROM Books ORDER BY price DESC"
+      );
+      res.json({ success: true, data: result.recordset });
     } catch (error) {
-      console.error("Get bestsellers error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Lỗi server khi lấy sách bán chạy",
-        error: error.message,
-      });
+      res.status(500).json({ success: false, message: "Lỗi server" });
     }
   },
 
-  // Lấy chi tiết sách
-  async getBookById(req, res) {
+  // 5. Chi tiết sách
+  getBookById: async (req, res) => {
     try {
       const { id } = req.params;
-      const book = await Book.findById(id);
+      const request = new sql.Request();
+      const result = await request
+        .input("id", sql.Int, id)
+        .query("SELECT * FROM Books WHERE id = @id");
 
-      if (!book) {
-        return res.status(404).json({
-          success: false,
-          message: "Không tìm thấy sách",
-        });
+      if (result.recordset.length > 0) {
+        res.json({ success: true, data: result.recordset[0] });
+      } else {
+        res
+          .status(404)
+          .json({ success: false, message: "Không tìm thấy sách" });
       }
-
-      res.json({
-        success: true,
-        data: book,
-      });
     } catch (error) {
-      console.error("Get book by id error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Lỗi server khi lấy thông tin sách",
-        error: error.message,
-      });
+      res.status(500).json({ success: false, message: "Lỗi server" });
     }
   },
 
-  // Lấy reviews của sách
-  async getBookReviews(req, res) {
+  // 6. Lấy Reviews của sách
+  getBookReviews: async (req, res) => {
     try {
       const { id } = req.params;
-      const { page = 1, limit = 10 } = req.query;
-      const offset = (page - 1) * limit;
-
-      const book = await Book.findById(id);
-      if (!book) {
-        return res.status(404).json({
-          success: false,
-          message: "Không tìm thấy sách",
-        });
-      }
-
-      const reviews = await book.getReviews(parseInt(limit), parseInt(offset));
-
-      res.json({
-        success: true,
-        data: reviews,
-      });
+      const request = new sql.Request();
+      // Cần join bảng Users để lấy tên người review
+      const result = await request.input("bookId", sql.Int, id).query(`
+                SELECT r.*, u.name as user_name, u.avatar_url 
+                FROM Reviews r 
+                JOIN Users u ON r.user_id = u.id 
+                WHERE r.book_id = @bookId 
+                ORDER BY r.created_at DESC
+            `);
+      res.json({ success: true, data: result.recordset });
     } catch (error) {
-      console.error("Get book reviews error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Lỗi server khi lấy reviews sách",
-        error: error.message,
-      });
+      // Nếu chưa có bảng Reviews thì trả về mảng rỗng để không crash
+      res.json({ success: true, data: [] });
     }
   },
 
-  // Tạo review cho sách
-  async createReview(req, res) {
+  // --- PROTECTED ROUTES ---
+
+  // 7. Viết Review (Cần bảng Reviews)
+  createReview: async (req, res) => {
     try {
-      const { id } = req.params;
-      const { rating, title, comment } = req.body;
+      const { id } = req.params; // bookId
+      const { rating, comment } = req.body;
       const userId = req.user.id;
 
-      // Validation
-      if (!rating || rating < 1 || rating > 5) {
-        return res.status(400).json({
-          success: false,
-          message: "Rating phải từ 1 đến 5 sao",
-        });
-      }
+      const request = new sql.Request();
+      await request
+        .input("userId", sql.Int, userId)
+        .input("bookId", sql.Int, id)
+        .input("rating", sql.Int, rating)
+        .input("comment", sql.NVarChar, comment).query(`
+                    INSERT INTO Reviews (user_id, book_id, rating, comment)
+                    VALUES (@userId, @bookId, @rating, @comment)
+                `);
 
-      const book = await Book.findById(id);
-      if (!book) {
-        return res.status(404).json({
-          success: false,
-          message: "Không tìm thấy sách",
-        });
-      }
-
-      const reviewData = {
-        user_id: userId,
-        book_id: parseInt(id),
-        rating: parseInt(rating),
-        title: title || null,
-        comment: comment || null,
-      };
-
-      const review = await Review.create(reviewData);
-
-      // Cập nhật rating trung bình của sách
-      await book.updateRating();
-
-      res.status(201).json({
-        success: true,
-        message: "Đánh giá thành công",
-        data: review,
-      });
+      res.status(201).json({ success: true, message: "Đã gửi đánh giá" });
     } catch (error) {
-      console.error("Create review error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Lỗi server khi tạo review",
-        error: error.message,
-      });
+      console.error(error);
+      res.status(500).json({ success: false, message: "Lỗi khi đánh giá" });
     }
   },
 
-  // Tạo sách mới (admin only)
-  async createBook(req, res) {
+  // --- ADMIN ROUTES ---
+
+  // 8. Tạo sách mới
+  createBook: async (req, res) => {
     try {
       const {
         title,
         author,
         price,
-        original_price,
         category_id,
         description,
         image_url,
         stock_quantity,
-        isbn,
-        publisher,
-        published_date,
-        pages,
-        language,
-        weight_kg,
-        dimensions,
-        is_featured,
-        is_bestseller,
       } = req.body;
+      const request = new sql.Request();
 
-      // Validation
-      if (!title || !author || !price) {
-        return res.status(400).json({
-          success: false,
-          message: "Tiêu đề, tác giả và giá là bắt buộc",
-        });
-      }
+      await request
+        .input("title", sql.NVarChar, title)
+        .input("author", sql.NVarChar, author)
+        .input("price", sql.Decimal(18, 2), price)
+        .input("catId", sql.Int, category_id)
+        .input("desc", sql.NVarChar, description)
+        .input("img", sql.NVarChar, image_url)
+        .input("stock", sql.Int, stock_quantity || 0).query(`
+                    INSERT INTO Books (title, author, price, category_id, description, image_url, stock_quantity)
+                    VALUES (@title, @author, @price, @catId, @desc, @img, @stock)
+                `);
 
-      const bookData = {
-        title,
-        author,
-        price: parseFloat(price),
-        original_price: original_price ? parseFloat(original_price) : null,
-        category_id: category_id ? parseInt(category_id) : null,
-        description: description || null,
-        image_url: image_url || null,
-        stock_quantity: stock_quantity ? parseInt(stock_quantity) : 0,
-        isbn: isbn || null,
-        publisher: publisher || null,
-        published_date: published_date || null,
-        pages: pages ? parseInt(pages) : null,
-        language: language || null,
-        weight_kg: weight_kg ? parseFloat(weight_kg) : null,
-        dimensions: dimensions || null,
-        is_featured: is_featured ? Boolean(is_featured) : false,
-        is_bestseller: is_bestseller ? Boolean(is_bestseller) : false,
-      };
-
-      const book = await Book.create(bookData);
-
-      res.status(201).json({
-        success: true,
-        message: "Tạo sách thành công",
-        data: book,
-      });
+      res.status(201).json({ success: true, message: "Thêm sách thành công" });
     } catch (error) {
-      console.error("Create book error:", error);
       res.status(500).json({
         success: false,
-        message: "Lỗi server khi tạo sách",
+        message: "Lỗi thêm sách",
         error: error.message,
       });
     }
   },
 
-  // Cập nhật sách (admin only)
-  async updateBook(req, res) {
+  // 9. Cập nhật sách
+  updateBook: async (req, res) => {
     try {
       const { id } = req.params;
-      const updateData = req.body;
+      const { title, author, price, description, stock_quantity } = req.body;
+      const request = new sql.Request();
 
-      const book = await Book.findById(id);
-      if (!book) {
-        return res.status(404).json({
-          success: false,
-          message: "Không tìm thấy sách",
-        });
-      }
+      await request
+        .input("id", sql.Int, id)
+        .input("title", sql.NVarChar, title)
+        .input("author", sql.NVarChar, author)
+        .input("price", sql.Decimal(18, 2), price)
+        .input("desc", sql.NVarChar, description)
+        .input("stock", sql.Int, stock_quantity).query(`
+                    UPDATE Books 
+                    SET title=@title, author=@author, price=@price, description=@desc, stock_quantity=@stock
+                    WHERE id=@id
+                `);
 
-      // Chuyển đổi kiểu dữ liệu
-      if (updateData.price) updateData.price = parseFloat(updateData.price);
-      if (updateData.original_price)
-        updateData.original_price = parseFloat(updateData.original_price);
-      if (updateData.category_id)
-        updateData.category_id = parseInt(updateData.category_id);
-      if (updateData.stock_quantity)
-        updateData.stock_quantity = parseInt(updateData.stock_quantity);
-      if (updateData.pages) updateData.pages = parseInt(updateData.pages);
-      if (updateData.weight_kg)
-        updateData.weight_kg = parseFloat(updateData.weight_kg);
-      if (updateData.is_featured !== undefined)
-        updateData.is_featured = Boolean(updateData.is_featured);
-      if (updateData.is_bestseller !== undefined)
-        updateData.is_bestseller = Boolean(updateData.is_bestseller);
-
-      const updatedBook = await book.update(updateData);
-
-      res.json({
-        success: true,
-        message: "Cập nhật sách thành công",
-        data: updatedBook,
-      });
+      res.json({ success: true, message: "Cập nhật thành công" });
     } catch (error) {
-      console.error("Update book error:", error);
+      res.status(500).json({ success: false, message: "Lỗi cập nhật" });
+    }
+  },
+
+  // 10. Xóa sách
+  deleteBook: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const request = new sql.Request();
+      await request
+        .input("id", sql.Int, id)
+        .query("DELETE FROM Books WHERE id = @id");
+      res.json({ success: true, message: "Đã xóa sách" });
+    } catch (error) {
       res.status(500).json({
         success: false,
-        message: "Lỗi server khi cập nhật sách",
-        error: error.message,
+        message: "Lỗi xóa sách (Có thể sách đang có trong đơn hàng)",
       });
     }
   },
 
-  // Cập nhật stock (admin only)
-  async updateStock(req, res) {
+  // 11. Cập nhật kho nhanh (Patch)
+  updateStock: async (req, res) => {
     try {
       const { id } = req.params;
-      const { quantity } = req.body;
-
-      if (quantity === undefined || quantity < 0) {
-        return res.status(400).json({
-          success: false,
-          message: "Số lượng stock không hợp lệ",
-        });
-      }
-
-      const book = await Book.findById(id);
-      if (!book) {
-        return res.status(404).json({
-          success: false,
-          message: "Không tìm thấy sách",
-        });
-      }
-
-      await Book.updateStock(id, parseInt(quantity));
-
-      res.json({
-        success: true,
-        message: "Cập nhật stock thành công",
-      });
+      const { stock } = req.body;
+      const request = new sql.Request();
+      await request
+        .input("id", sql.Int, id)
+        .input("stock", sql.Int, stock)
+        .query("UPDATE Books SET stock_quantity = @stock WHERE id = @id");
+      res.json({ success: true, message: "Đã cập nhật kho" });
     } catch (error) {
-      console.error("Update stock error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Lỗi server khi cập nhật stock",
-        error: error.message,
-      });
-    }
-  },
-
-  // Xóa sách (admin only)
-  async deleteBook(req, res) {
-    try {
-      const { id } = req.params;
-
-      const book = await Book.findById(id);
-      if (!book) {
-        return res.status(404).json({
-          success: false,
-          message: "Không tìm thấy sách",
-        });
-      }
-
-      await Book.delete(id);
-
-      res.json({
-        success: true,
-        message: "Xóa sách thành công",
-      });
-    } catch (error) {
-      console.error("Delete book error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Lỗi server khi xóa sách",
-        error: error.message,
-      });
+      res.status(500).json({ success: false, message: "Lỗi cập nhật kho" });
     }
   },
 };

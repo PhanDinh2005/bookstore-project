@@ -1,345 +1,94 @@
-const Order = require("../models/Order");
-const OrderItem = require("../models/OrderItem");
-const Cart = require("../models/Cart");
-const Book = require("../models/Book");
+const { dbHelpers } = require("../config/database");
 
 const orderController = {
-  // Tạo đơn hàng mới
-  async createOrder(req, res) {
+  // 1. TẠO ĐƠN HÀNG MỚI
+  createOrder: async (req, res) => {
     try {
-      const userId = req.user.id;
-      const { shipping_address, payment_method, customer_note } = req.body;
+      const userId = req.user.id; // Lấy từ token
+      const {
+        shipping_address,
+        payment_method,
+        customer_note,
+        shipping_fee,
+        total_amount,
+      } = req.body;
 
-      if (!shipping_address) {
-        return res.status(400).json({
-          success: false,
-          message: "Địa chỉ giao hàng là bắt buộc",
-        });
+      // B1: Kiểm tra giỏ hàng có đồ không
+      const cartCheck = await dbHelpers.query(
+        "SELECT COUNT(*) as count FROM Cart WHERE user_id = @userId",
+        { userId }
+      );
+
+      if (cartCheck[0].count === 0) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Giỏ hàng trống!" });
       }
 
-      // Lấy giỏ hàng của user
-      const cartItems = await Cart.getByUserId(userId);
-      if (!cartItems || cartItems.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: "Giỏ hàng trống",
-        });
-      }
+      // B2: Tạo đơn hàng (INSERT vào bảng Orders)
+      // Dùng OUTPUT INSERTED.id để lấy ID đơn hàng vừa tạo
+      const orderSql = `
+                INSERT INTO Orders (user_id, shipping_address, payment_method, customer_note, shipping_fee, total_amount, status, created_at)
+                OUTPUT INSERTED.id
+                VALUES (@userId, @address, @payment, @note, @fee, @total, 'pending', GETDATE())
+            `;
 
-      // Tính tổng tiền và kiểm tra tồn kho
-      let totalAmount = 0;
-      const orderItems = [];
+      const orderResult = await dbHelpers.query(orderSql, {
+        userId,
+        address: shipping_address,
+        payment: payment_method,
+        note: customer_note,
+        fee: shipping_fee,
+        total: total_amount,
+      });
 
-      for (const item of cartItems) {
-        const book = await Book.findById(item.book_id);
-        if (!book) {
-          return res.status(400).json({
-            success: false,
-            message: `Sách "${item.title}" không tồn tại`,
-          });
-        }
+      const newOrderId = orderResult[0].id;
 
-        if (book.stock_quantity < item.quantity) {
-          return res.status(400).json({
-            success: false,
-            message: `Sách "${item.title}" chỉ còn ${book.stock_quantity} sản phẩm`,
-          });
-        }
+      // B3: Copy dữ liệu từ Cart sang OrderDetails
+      // (Kỹ thuật SQL: INSERT INTO ... SELECT ...) -> Rất nhanh và an toàn
+      const detailsSql = `
+                INSERT INTO OrderDetails (order_id, book_id, quantity, price)
+                SELECT @orderId, c.book_id, c.quantity, b.price
+                FROM Cart c
+                JOIN Books b ON c.book_id = b.id
+                WHERE c.user_id = @userId
+            `;
+      await dbHelpers.execute(detailsSql, { orderId: newOrderId, userId });
 
-        const subtotal = item.price * item.quantity;
-        totalAmount += subtotal;
-
-        orderItems.push({
-          book_id: item.book_id,
-          quantity: item.quantity,
-          price: item.price,
-          subtotal: subtotal,
-        });
-      }
-
-      // Thêm phí ship
-      const shippingFee = 15000; // 15k VND
-      totalAmount += shippingFee;
-
-      // Tạo đơn hàng
-      const orderData = {
-        user_id: userId,
-        total_amount: totalAmount,
-        shipping_address: shipping_address,
-        shipping_fee: shippingFee,
-        payment_method: payment_method || "cod",
-        customer_note: customer_note || null,
-      };
-
-      const order = await Order.create(orderData);
-
-      // Thêm order items
-      for (const item of orderItems) {
-        await OrderItem.create({
-          order_id: order.id,
-          book_id: item.book_id,
-          quantity: item.quantity,
-          price: item.price,
-          subtotal: item.subtotal,
-        });
-
-        // Cập nhật số lượng tồn kho
-        await Book.updateStock(item.book_id, item.quantity);
-      }
-
-      // Xóa giỏ hàng sau khi tạo đơn hàng
-      await Cart.clearUserCart(userId);
-
-      // Lấy thông tin đơn hàng đầy đủ
-      const completeOrder = await Order.findById(order.id);
+      // B4: Xóa sạch giỏ hàng của user này
+      await dbHelpers.execute("DELETE FROM Cart WHERE user_id = @userId", {
+        userId,
+      });
 
       res.status(201).json({
         success: true,
-        message: "Tạo đơn hàng thành công",
-        data: completeOrder,
+        message: "Đặt hàng thành công!",
+        orderId: newOrderId,
       });
     } catch (error) {
-      console.error("Create order error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Lỗi server khi tạo đơn hàng",
-        error: error.message,
-      });
+      console.error("Create Order Error:", error);
+      res
+        .status(500)
+        .json({ success: false, message: "Lỗi server khi tạo đơn hàng" });
     }
   },
 
-  // Lấy đơn hàng của user
-  async getMyOrders(req, res) {
+  // 2. LẤY DANH SÁCH ĐƠN HÀNG CỦA TÔI
+  getMyOrders: async (req, res) => {
     try {
       const userId = req.user.id;
-      const { page = 1, limit = 10, status } = req.query;
-      const offset = (page - 1) * limit;
-
-      const result = await Order.findByUserId(
-        userId,
-        parseInt(limit),
-        parseInt(offset)
-      );
-
-      res.json({
-        success: true,
-        data: result,
-        pagination: {
-          current: parseInt(page),
-          itemsPerPage: parseInt(limit),
-        },
-      });
+      const sql = `
+                SELECT * FROM Orders 
+                WHERE user_id = @userId 
+                ORDER BY created_at DESC
+            `;
+      const orders = await dbHelpers.query(sql, { userId });
+      res.json({ success: true, data: orders });
     } catch (error) {
-      console.error("Get my orders error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Lỗi server khi lấy đơn hàng",
-        error: error.message,
-      });
-    }
-  },
-
-  // Lấy chi tiết đơn hàng của user
-  async getMyOrderById(req, res) {
-    try {
-      const userId = req.user.id;
-      const { id } = req.params;
-
-      const order = await Order.findById(id);
-
-      if (!order) {
-        return res.status(404).json({
-          success: false,
-          message: "Không tìm thấy đơn hàng",
-        });
-      }
-
-      // Kiểm tra user có quyền xem đơn hàng này không
-      if (order.user_id !== userId) {
-        return res.status(403).json({
-          success: false,
-          message: "Không có quyền truy cập đơn hàng này",
-        });
-      }
-
-      res.json({
-        success: true,
-        data: order,
-      });
-    } catch (error) {
-      console.error("Get my order error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Lỗi server khi lấy chi tiết đơn hàng",
-        error: error.message,
-      });
-    }
-  },
-
-  // Lấy tất cả đơn hàng (admin only)
-  async getAllOrders(req, res) {
-    try {
-      const {
-        page = 1,
-        limit = 10,
-        status,
-        payment_status,
-        start_date,
-        end_date,
-      } = req.query;
-      const offset = (page - 1) * limit;
-
-      const result = await Order.findAll({
-        status,
-        payment_status,
-        start_date,
-        end_date,
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-      });
-
-      res.json({
-        success: true,
-        data: result.orders,
-        pagination: {
-          current: parseInt(page),
-          total: Math.ceil(result.total / limit),
-          totalItems: result.total,
-          itemsPerPage: parseInt(limit),
-        },
-      });
-    } catch (error) {
-      console.error("Get all orders error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Lỗi server khi lấy danh sách đơn hàng",
-        error: error.message,
-      });
-    }
-  },
-
-  // Lấy chi tiết đơn hàng (admin only)
-  async getOrderById(req, res) {
-    try {
-      const { id } = req.params;
-
-      const order = await Order.findById(id);
-
-      if (!order) {
-        return res.status(404).json({
-          success: false,
-          message: "Không tìm thấy đơn hàng",
-        });
-      }
-
-      res.json({
-        success: true,
-        data: order,
-      });
-    } catch (error) {
-      console.error("Get order error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Lỗi server khi lấy chi tiết đơn hàng",
-        error: error.message,
-      });
-    }
-  },
-
-  // Cập nhật trạng thái đơn hàng (admin only)
-  async updateOrderStatus(req, res) {
-    try {
-      const { id } = req.params;
-      const { status, admin_note } = req.body;
-
-      if (!status) {
-        return res.status(400).json({
-          success: false,
-          message: "Trạng thái là bắt buộc",
-        });
-      }
-
-      const order = await Order.findById(id);
-      if (!order) {
-        return res.status(404).json({
-          success: false,
-          message: "Không tìm thấy đơn hàng",
-        });
-      }
-
-      const updatedOrder = await order.updateStatus(status, admin_note);
-
-      res.json({
-        success: true,
-        message: "Cập nhật trạng thái đơn hàng thành công",
-        data: updatedOrder,
-      });
-    } catch (error) {
-      console.error("Update order status error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Lỗi server khi cập nhật trạng thái đơn hàng",
-        error: error.message,
-      });
-    }
-  },
-
-  // Cập nhật trạng thái thanh toán (admin only)
-  async updatePaymentStatus(req, res) {
-    try {
-      const { id } = req.params;
-      const { payment_status } = req.body;
-
-      if (!payment_status) {
-        return res.status(400).json({
-          success: false,
-          message: "Trạng thái thanh toán là bắt buộc",
-        });
-      }
-
-      const order = await Order.findById(id);
-      if (!order) {
-        return res.status(404).json({
-          success: false,
-          message: "Không tìm thấy đơn hàng",
-        });
-      }
-
-      const updatedOrder = await order.updatePaymentStatus(payment_status);
-
-      res.json({
-        success: true,
-        message: "Cập nhật trạng thái thanh toán thành công",
-        data: updatedOrder,
-      });
-    } catch (error) {
-      console.error("Update payment status error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Lỗi server khi cập nhật trạng thái thanh toán",
-        error: error.message,
-      });
-    }
-  },
-
-  // Thống kê doanh thu (admin only)
-  async getRevenueStats(req, res) {
-    try {
-      const { start_date, end_date } = req.query;
-
-      const stats = await Order.getTotalRevenue(start_date, end_date);
-
-      res.json({
-        success: true,
-        data: stats,
-      });
-    } catch (error) {
-      console.error("Get revenue stats error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Lỗi server khi lấy thống kê doanh thu",
-        error: error.message,
-      });
+      console.error(error);
+      res
+        .status(500)
+        .json({ success: false, message: "Lỗi lấy danh sách đơn hàng" });
     }
   },
 };

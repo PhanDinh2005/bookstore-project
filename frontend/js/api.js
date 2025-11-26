@@ -1,83 +1,75 @@
-const API_BASE_URL = "http://localhost:5000/api";
+// Đảm bảo đúng port 5000 như trong server.js
+const API_BASE = "http://localhost:5000/api";
 
-class BookstoreAPI {
-  // Books API
-  static async getBooks(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    const response = await fetch(`${API_BASE_URL}/books?${queryString}`);
-    return await response.json();
-  }
+const formatMoney = (amount) =>
+  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
+    amount
+  );
+const getToken = () => localStorage.getItem("token");
 
-  static async getBookById(id) {
-    const response = await fetch(`${API_BASE_URL}/books/${id}`);
-    return await response.json();
-  }
+// Hàm chạy mỗi khi vào trang
+document.addEventListener("DOMContentLoaded", () => {
+  updateHeaderUser();
+  updateCartCount();
+});
 
-  static async searchBooks(query) {
-    const response = await fetch(
-      `${API_BASE_URL}/books/search?q=${encodeURIComponent(query)}`
-    );
-    return await response.json();
-  }
+// Cập nhật Header
+function updateHeaderUser() {
+  const user = JSON.parse(localStorage.getItem("user"));
+  const authDisplay = document.getElementById("auth-display");
+  const userDropdown = document.getElementById("user-dropdown");
 
-  // Categories API
-  static async getCategories() {
-    const response = await fetch(`${API_BASE_URL}/categories`);
-    return await response.json();
-  }
+  if (!authDisplay || !userDropdown) return;
 
-  static async getCategoryById(id) {
-    const response = await fetch(`${API_BASE_URL}/categories/${id}`);
-    return await response.json();
-  }
-
-  static async getBooksByCategory(categoryId) {
-    const response = await fetch(
-      `${API_BASE_URL}/categories/${categoryId}/books`
-    );
-    return await response.json();
+  if (user) {
+    // Đã đăng nhập
+    authDisplay.innerHTML = `
+            <i class="fas fa-user-circle" style="font-size:20px; color:#28a745"></i>
+            <div class="user-info">
+                <span style="font-weight:bold;">${
+                  user.name || "Khách hàng"
+                }</span>
+            </div>
+        `;
+    userDropdown.innerHTML = `
+            <a href="#" class="menu-link" onclick="logout()">Đăng xuất</a>
+        `;
+  } else {
+    // Chưa đăng nhập
+    authDisplay.innerHTML = `
+            <i class="far fa-user"></i>
+            <div class="user-info">
+                <span>Tài khoản</span>
+                <small>Đăng nhập/Đăng ký</small>
+            </div>
+        `;
   }
 }
 
-// Cart functionality
-class Cart {
-  static getCart() {
-    return JSON.parse(localStorage.getItem("cart")) || [];
+// Cập nhật số lượng giỏ hàng
+async function updateCartCount() {
+  const badge = document.getElementById("cart-count");
+  if (!badge) return;
+  const token = getToken();
+  if (!token) {
+    badge.style.display = "none";
+    return;
   }
 
-  static addToCart(book) {
-    const cart = this.getCart();
-    const existingItem = cart.find((item) => item.id === book.id);
-
-    if (existingItem) {
-      existingItem.quantity += 1;
-    } else {
-      cart.push({
-        ...book,
-        quantity: 1,
-      });
+  try {
+    const res = await fetch(`${API_BASE}/cart`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (data.success) {
+      const count = Array.isArray(data.data) ? data.data.length : 0;
+      badge.innerText = count;
+      badge.style.display = count > 0 ? "block" : "none";
     }
+  } catch (e) {}
+}
 
-    localStorage.setItem("cart", JSON.stringify(cart));
-    this.updateCartCount();
-    return cart;
-  }
-
-  static removeFromCart(bookId) {
-    const cart = this.getCart().filter((item) => item.id !== bookId);
-    localStorage.setItem("cart", JSON.stringify(cart));
-    this.updateCartCount();
-    return cart;
-  }
-
-  static updateCartCount() {
-    const cart = this.getCart();
-    const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-    document.getElementById("cart-count").textContent = totalItems;
-  }
-
-  static getTotalPrice() {
-    const cart = this.getCart();
-    return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  }
+function logout() {
+  localStorage.clear();
+  window.location.href = "index.html";
 }
