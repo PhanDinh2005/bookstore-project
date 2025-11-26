@@ -3,101 +3,192 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BookStore - Mua sách trực tuyến</title>
-    <link rel="stylesheet" href="styles/main.css" />
+    <title>BookStore - Nhà sách trực tuyến uy tín</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles/main.css" />
     <link
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
       rel="stylesheet"
     />
   </head>
   <body>
-    <!-- Header -->
     <header class="header">
-      <nav class="navbar">
-        <div class="nav-brand">
-          <h1>📚 BookStore</h1>
-        </div>
-        <div class="nav-links">
-          <a href="#home" class="nav-link">Trang chủ</a>
-          <a href="#books" class="nav-link">Sách</a>
-          <a href="#categories" class="nav-link">Danh mục</a>
-          <a href="#cart" class="nav-link">
-            <i class="fas fa-shopping-cart"></i>
-            Giỏ hàng <span id="cart-count">0</span>
-          </a>
-          <a href="#login" class="nav-link btn-login">Đăng nhập</a>
-        </div>
-      </nav>
-    </header>
+      <div class="container header-container">
+        <a href="index.html" class="logo">
+          <i class="fas fa-book-open"></i> BOOKSTORE
+        </a>
 
-    <!-- Main Content -->
-    <main class="main-content">
-      <!-- Hero Section -->
-      <section id="home" class="hero-section">
-        <div class="hero-content">
-          <h2>Khám phá thế giới sách trực tuyến</h2>
-          <p>Hơn 1000+ đầu sách với đa dạng thể loại</p>
-          <button class="btn-primary" onclick="showBooksSection()">
-            Mua sách ngay
+        <div class="search-box">
+          <input
+            type="text"
+            id="search-input"
+            placeholder="Tìm kiếm sách, tác giả..."
+          />
+          <button onclick="handleSearch()">
+            <i class="fas fa-search"></i>
           </button>
         </div>
-      </section>
 
-      <!-- Categories Section -->
-      <section id="categories" class="categories-section">
-        <div class="container">
-          <h2 class="section-title">Danh mục sách</h2>
-          <div id="categories-list" class="categories-grid">
-            <!-- Categories will be loaded here -->
-          </div>
-        </div>
-      </section>
-
-      <!-- Books Section -->
-      <section id="books" class="books-section">
-        <div class="container">
-          <div class="section-header">
-            <h2 class="section-title">Sách mới nhất</h2>
-            <div class="search-filter">
-              <input
-                type="text"
-                id="search-input"
-                placeholder="Tìm kiếm sách..."
-                class="search-box"
-              />
-              <select id="category-filter" class="filter-select">
-                <option value="">Tất cả danh mục</option>
-              </select>
+        <div class="header-icons">
+          <div class="icon-item dropdown">
+            <div class="icon-wrap">
+              <i class="far fa-bell"></i>
+              <span>Thông báo</span>
+            </div>
+            <div class="dropdown-menu notify-menu">
+              <div class="notify-header">Thông báo mới nhận</div>
+              <div class="notify-list">
+                <div class="notify-item">
+                  <img
+                    src="https://cdn-icons-png.flaticon.com/512/726/726496.png"
+                    alt="sale"
+                  />
+                  <div>
+                    <strong>Khuyến mãi 50%</strong>
+                    <p>Duy nhất hôm nay cho sách Văn học.</p>
+                  </div>
+                </div>
+                <div class="notify-item">
+                  <img
+                    src="https://cdn-icons-png.flaticon.com/512/1162/1162479.png"
+                    alt="ship"
+                  />
+                  <div>
+                    <strong>Freeship đơn 0đ</strong>
+                    <p>Mã giảm giá đã được thêm vào ví.</p>
+                  </div>
+                </div>
+              </div>
+              <div class="notify-footer">Xem tất cả</div>
             </div>
           </div>
-          <div id="books-list" class="books-grid">
-            <!-- Books will be loaded here -->
-          </div>
-          <div class="load-more">
-            <button id="load-more-btn" class="btn-secondary">Xem thêm</button>
-          </div>
-        </div>
-      </section>
 
-      <!-- Book Detail Modal -->
-      <div id="book-modal" class="modal">
-        <div class="modal-content">
-          <span class="close">&times;</span>
-          <div id="book-detail">
-            <!-- Book detail will be loaded here -->
+          <a href="pages/cart.html" class="icon-item cart-link">
+            <div class="icon-wrap" style="position: relative">
+              <i class="fas fa-shopping-cart"></i>
+              <span id="cart-count" class="badge-count">0</span>
+            </div>
+            <span>Giỏ hàng</span>
+          </a>
+
+          <div class="icon-item dropdown">
+            <div id="auth-display" class="user-link">
+              <i class="far fa-user"></i>
+              <div class="user-info">
+                <span style="font-weight: bold; font-size: 13px"
+                  >Tài khoản</span
+                >
+                <small style="font-size: 11px; color: #777"
+                  >Đăng nhập / Đăng ký</small
+                >
+              </div>
+            </div>
+
+            <div id="user-dropdown" class="dropdown-menu user-menu">
+              <a href="pages/login.html" class="menu-link"
+                ><i class="fas fa-sign-in-alt"></i> Đăng nhập</a
+              >
+              <a href="pages/register.html" class="menu-link"
+                ><i class="fas fa-user-plus"></i> Đăng ký</a
+              >
+            </div>
           </div>
         </div>
       </div>
+    </header>
+
+    <section class="banner-section">
+      <div class="container">
+        <div class="banner-img">
+          <img
+            src="https://cdn0.fahasa.com/media/wysiwyg/Thang-11-2025/Manga_LadingPage_MainBanner_1920x700.jpg"
+            alt="Banner Khuyến Mãi"
+          />
+        </div>
+      </div>
+    </section>
+
+    <main class="container main-layout">
+      <aside class="sidebar">
+        <div class="filter-group">
+          <h3><i class="fas fa-filter"></i> BỘ LỌC TÌM KIẾM</h3>
+
+          <div class="filter-item">
+            <h4>Khoảng giá</h4>
+            <select id="price-filter" class="form-control">
+              <option value="">Tất cả mức giá</option>
+              <option value="0-50000">Dưới 50.000đ</option>
+              <option value="50000-150000">50.000đ - 150.000đ</option>
+              <option value="150000-300000">150.000đ - 300.000đ</option>
+              <option value="300000-9999999">Trên 300.000đ</option>
+            </select>
+          </div>
+
+          <div class="filter-item">
+            <h4>Thể loại</h4>
+            <ul class="category-list">
+              <li><a href="#" onclick="filterCat(1)">Văn học</a></li>
+              <li><a href="#" onclick="filterCat(2)">Kinh tế</a></li>
+              <li><a href="#" onclick="filterCat(3)">Thiếu nhi</a></li>
+              <li><a href="#" onclick="filterCat(4)">Công nghệ</a></li>
+            </ul>
+          </div>
+
+          <button onclick="handleSearch()" class="btn-filter">Áp dụng</button>
+        </div>
+      </aside>
+
+      <section class="product-section">
+        <div class="section-header">
+          <h2>🔥 Xu Hướng Mua Sắm</h2>
+          <div class="sort-options">
+            Sắp xếp:
+            <select onchange="handleSort(this.value)">
+              <option value="newest">Mới nhất</option>
+              <option value="price_asc">Giá thấp đến cao</option>
+              <option value="price_desc">Giá cao đến thấp</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="book-list" class="product-grid">
+          <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i> Đang tải sách...
+          </div>
+        </div>
+      </section>
     </main>
 
-    <!-- Footer -->
     <footer class="footer">
       <div class="container">
-        <p>&copy; 2024 BookStore. All rights reserved.</p>
+        <div class="footer-col">
+          <h3>VỀ BOOKSTORE</h3>
+          <p>Giới thiệu</p>
+          <p>Tuyển dụng</p>
+          <p>Chính sách bảo mật</p>
+        </div>
+        <div class="footer-col">
+          <h3>HỖ TRỢ KHÁCH HÀNG</h3>
+          <p>Hướng dẫn mua hàng</p>
+          <p>Phương thức thanh toán</p>
+          <p>Chính sách đổi trả</p>
+        </div>
+        <div class="footer-col">
+          <h3>LIÊN HỆ</h3>
+          <p><i class="fas fa-map-marker-alt"></i> 123 Đường Sách, TP.HCM</p>
+          <p><i class="fas fa-envelope"></i> cskh@bookstore.com</p>
+          <p><i class="fas fa-phone"></i> 1900 1234</p>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2024 BookStore - Design by You</p>
       </div>
     </footer>
 
-    <script src="js/api.js"></script>
-    <script src="js/app.js"></script>
+    <script src="./js/api.js"></script>
+    <script src="./js/index.js"></script>
   </body>
 </html>
